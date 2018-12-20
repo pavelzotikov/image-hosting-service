@@ -1,0 +1,80 @@
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/uikit/3.0.0-rc.10/css/uikit.min.css" />
+
+<script src="https://cdn.jsdelivr.net/npm/vue@2.5.17/dist/vue.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vue-resource@1.5.1"></script>
+
+<div class="uk-position-medium uk-position-center">
+    <form id="app" action="/upload" method="POST" enctype="multipart/form-data">
+        <input type="file" @change="onSelect($event)" value="" accept="image/jpeg, image/png" multiple />
+        {#<input type="text" @change="onSize($event)" value="" placeholder="Sizes: 1200x600" />#}
+        <input type="submit" @click.stop.prevent="onClick($event)" value="Загрузить" />
+        <table v-for="im in images">
+            <tr>
+                <td><img :src="im.thumbnail" /><td/>
+                <td>
+                    {-raw-}{{ im.size.width }}x{{ im.size.height }}{-raw-}<br/>
+                    <a :href="im.original">{-raw-}{{ im.original }}{-raw-}</a><br v-if="im.custom" />
+                    {#<a :href="im.custom" v-if="im.custom">{-raw-}{{ im.custom }}{-raw-}</a>#}
+                </td>
+            </tr>
+        </table>
+    </form>
+</div>
+
+<script>
+    let im = new Vue({
+        el: '#app',
+        data: {
+            files: {},
+            images: {},
+            sizes: {}
+        },
+        methods: {
+            onSelect: function(e) {
+                let files = e.target.files || e.dataTransfer.files;
+                if (!files.length) {
+                    return;
+                }
+
+                this.files = files;
+            },
+            onSize: function(e) {
+                console.log(e);
+                this.sizes = e.target.value;
+            },
+            onClick: function(e) {
+                if (!this.files.length) {
+                    return;
+                }
+
+                let form_data = new FormData();
+
+                form_data.append('images', this.files.length);
+                for(let i = 0; i < this.files.length; i++) {
+                    form_data.append('image' + i, this.files[i]);
+                }
+
+                console.log(this);
+
+                if (this.sizes.length) {
+                    form_data.append('size', this.sizes);
+                }
+
+                this.$http.post('/', form_data, {
+                    progress: function(e) {
+                        if (e.lengthComputable) {
+                            console.log('Загрузка ' + parseInt(e.loaded / e.total * 100) + '%');
+                        }
+                    }
+                }).then(function(response) {
+                    if (response.status === 200) {
+                        let json = JSON.parse(response.bodyText);
+                        this.images = json.images;
+                    } else {
+                        console.log(response);
+                    }
+                });
+            }
+        }
+    });
+</script>
